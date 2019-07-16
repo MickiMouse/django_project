@@ -4,8 +4,8 @@ from django.template import TemplateDoesNotExist
 from django.template.loader import get_template
 from django.shortcuts import render, get_object_or_404
 from django.contrib.auth import logout
-from django.contrib.auth.views import LoginView, LogoutView, \
-                                      PasswordChangeView
+from django.contrib.auth.views import LoginView, LogoutView, PasswordResetView, \
+    PasswordResetConfirmView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -13,9 +13,11 @@ from django.contrib.messages.views import SuccessMessageMixin
 from django.views.generic.edit import UpdateView, CreateView, DeleteView
 from django.views.generic.base import TemplateView
 from django.core.signing import BadSignature
+from django.core.paginator import Paginator
+from django.db.models import Q
 
-from .models import AdvUser
-from .forms import ChangeUserInfoForm, RegisterUserForm
+from .models import AdvUser, SubRubric, Bb
+from .forms import ChangeUserInfoForm, RegisterUserForm, SearchForm
 from .utilities import signer
 
 
@@ -61,10 +63,18 @@ class ChangeUserInfoView(SuccessMessageMixin, LoginRequiredMixin, UpdateView):
         return get_object_or_404(queryset, pk=self.user_id)
 
 
-class BBPasswordChangeView(SuccessMessageMixin, LoginRequiredMixin,
-                           PasswordChangeView):
-    template_name = 'main/password_change.html'
-    success_url = reverse_lazy('main:profile')
+class BBPasswordResetView(SuccessMessageMixin, PasswordResetView, LoginRequiredMixin):
+    template_name = 'registration/reset_form.html'
+    subject_template_name = 'registration/reset_subject.txt'
+    email_template_name = 'registration/reset_email.html'
+    success_url = reverse_lazy('main:index')
+    success_message = 'Запрос отправлен, перейдите по ссылке, которая будет в письме, для сброса пароля'
+
+
+class BBPasswordResetConfirmView(SuccessMessageMixin, PasswordResetConfirmView, LoginRequiredMixin):
+    template_name = 'registration/reset_confirm.html'
+    post_reset_login = True
+    success_url = reverse_lazy('main:index')
     success_message = 'Пароль успешно изменён'
 
 
@@ -113,3 +123,30 @@ class DeleteUserView(LoginRequiredMixin, DeleteView):
         logout(request)
         messages.add_message(request, messages.SUCCESS, 'Пользователь удалён')
         return super().post(request, *args, **kwargs)
+
+
+def by_rubric(request, pk):
+    rubric = get_object_or_404(SubRubric, pk=pk)
+    bbs = Bb.objects.filter(is_active=True, rubric=pk)
+    if 'keyword' in request.GET:
+        keyword = request.GET['keyword']
+        q = Q(title__icontains=keyword) | Q(content__icontains=keyword)
+        bbs = bbs.filter(q)
+    else:
+        keyword = ''
+    form = SearchForm(initial={'keyword': keyword})
+    paginator = Paginator(bbs, 2)
+    if 'page' in request.GET:
+        page_num = request.GET['page']
+    else:
+        page_num = 1
+    page = paginator.get_page(page_num)
+    context = {'rubric': rubric, 'page': page, 'bbs': page.object_list, 'form': form}
+    return render(request, 'main/by_rubric.html', context)
+
+
+def detail(request, rubric_pk, pk):
+    bb = get_object_or_404(Bb, pk=pk)
+    ais = bb.additionalimage_set.all()
+    context = {'bb': bb, 'ais': ais}
+    return render(request, 'main/detail.html', context)
