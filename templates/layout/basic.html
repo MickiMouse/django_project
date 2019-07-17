@@ -16,7 +16,6 @@
         </header>
         <div class="row">
             <ul class="col nav justify-content-end border">
-                <li class="nav-item"><a href="{% url 'main:register' %}" class="nav-link">Регистрация</a></li>
                 {% if user.is_authenticated %}
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle"
@@ -35,6 +34,7 @@
                 {% else %}
                 <li class="nav-item"><a href="{% url 'main:login' %}" class="nav-link">Вход</a></li>
                 {% endif %}
+                <li class="nav-item"><a href="{% url 'main:register' %}" class="nav-link">Регистрация</a></li>
             </ul>
         </div>
         <div class="row">

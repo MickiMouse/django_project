@@ -22,7 +22,9 @@ from .utilities import signer
 
 
 def index(request):
-    return render(request, 'main/index.html')
+    bbs = Bb.objects.filter(is_active=True)[:10]
+    context = {'bbs': bbs}
+    return render(request, 'main/index.html', context)
 
 
 def other_page(request, page):
@@ -35,7 +37,17 @@ def other_page(request, page):
 
 @login_required
 def profile(request):
-    return render(request, 'main/profile.html')
+    bbs = Bb.objects.filter(author=request.user.pk)
+    context = {'bbs': bbs}
+    return render(request, 'main/profile.html', context)
+
+
+@login_required
+def profile_bb_detail(request, pk):
+    bb = get_object_or_404(Bb, pk=pk)
+    ais = bb.additionalimage_set.all()
+    context = {'bb': bb, 'ais': ais}
+    return render(request, 'main/profile_detail.html', context)
 
 
 class BBLoginView(LoginView):
@@ -148,5 +160,5 @@ def by_rubric(request, pk):
 def detail(request, rubric_pk, pk):
     bb = get_object_or_404(Bb, pk=pk)
     ais = bb.additionalimage_set.all()
-    context = {'bb': bb, 'ais': ais}
+    context = {'bb': bb, 'ais': ais, 'rubric_pk': rubric_pk}
     return render(request, 'main/detail.html', context)
